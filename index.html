@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Math Symbols</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: monospace;
+      padding: 16px;
+      background: #fff;
+      color: #000;
+    }
+    header {
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+    }
+    #search {
+      width: 100%;
+      font-size: 1rem;
+      font-family: inherit;
+      padding: 8px 10px;
+      border: 1px solid #000;
+      outline: none;
+      margin-bottom: 6px;
+    }
+    #count {
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 4px;
+    }
+    .cell {
+      border: 1px solid #000;
+      padding: 8px 4px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 72px;
+    }
+    .cell:hover {
+      background: #eee;
+    }
+    .cell:active {
+      background: #ccc;
+    }
+    .cell .char {
+      font-size: 1.6rem;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+    .cell .name {
+      font-size: 0.72rem;
+      word-break: break-word;
+      padding: 0 2px;
+    }
+    .cell.hidden {
+      display: none;
+    }
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.15s ease-in-out;
+      pointer-events: none;
+    }
+    #toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mathematical Symbols</h1>
+    <input type="search" id="search" placeholder="Type to search symbol by name or character..." autofocus />
+    <div id="count">Showing all symbols</div>
+  </header>
+
+  <main id="grid"></main>
+  <div id="toast"></div>
+
+  <script>
+    const symbols = [
+      // Basic Arithmetic & Algebra
+      ["+", "plus / addition"],
+      ["−", "minus / subtraction"],
+      ["×", "times / multiplication"],
+      ["÷", "division"],
+      ["±", "plus-minus"],
+      ["∓", "minus-plus"],
+      ["·", "middle dot / multiplication"],
+      ["*", "asterisk / star"],
+      ["/", "fraction slash / division"],
+      ["=", "equals"],
+      ["≠", "not equal"],
+      ["≈", "approximately equal"],
+      ["≡", "identical to / congruent"],
+      ["≢", "not identical"],
+      ["∼", "similar to / tilde"],
+      ["≃", "asymptotically equal"],
+      ["≅", "congruent to / isomorphic"],
+      ["∝", "proportional to"],
+      ["<", "less than"],
+      [">", "greater than"],
+      ["≤", "less than or equal"],
+      ["≥", "greater than or equal"],
+      ["≪", "much less than"],
+      ["≫", "much greater than"],
+      ["≮", "not less than"],
+      ["≯", "not greater than"],
+      ["≔", "defined as / colon equals"],
+      ["≝", "equal by definition"],
+      ["%", "percent"],
+      ["‰", "per mille"],
+      ["‱", "basis point / per myriad"],
+
+      // Sets & Relations
+      ["∈", "element of"],
+      ["∉", "not an element of"],
+      ["∋", "contains as member / owns"],
+      ["∌", "does not contain as member"],
+      ["⊂", "proper subset of"],
+      ["⊃", "proper superset of"],
+      ["⊄", "not a subset of"],
+      ["⊅", "not a superset of"],
+      ["⊆", "subset of or equal to"],
+      ["⊇", "superset of or equal to"],
+      ["⊈", "neither subset nor equal"],
+      ["⊉", "neither superset nor equal"],
+      ["∪", "union"],
+      ["∩", "intersection"],
+      ["∖", "set minus / difference"],
+      ["∁", "complement"],
+      ["∅", "empty set"],
+      ["℘", "power set / weierstrass p"],
+      ["ℵ", "aleph / cardinality"],
+      ["ℶ", "beth"],
+
+      // Number Systems
+      ["ℕ", "natural numbers"],
+      ["ℤ", "integers"],
+      ["ℚ", "rational numbers"],
+      ["ℝ", "real numbers"],
+      ["ℂ", "complex numbers"],
+      ["ℍ", "quaternions"],
+      ["ℙ", "prime numbers / projective space"],
+      ["𝔽", "finite field"],
+
+      // Logic & Proofs
+      ["∀", "for all / universal quantifier"],
+      ["∃", "there exists / existential quantifier"],
+      ["∄", "there does not exist"],
+      ["¬", "not / negation"],
+      ["∧", "logical and / conjunction / wedge"],
+      ["∨", "logical or / disjunction / vee"],
+      ["⊕", "direct sum / circled plus / xor"],
+      ["⊻", "exclusive or / xor"],
+      ["⇒", "implies / material implication"],
+      ["⇐", "implied by"],
+      ["⇔", "if and only if / iff / equivalence"],
+      ["→", "right arrow / implies / tends to"],
+      ["←", "left arrow"],
+      ["↔", "left right arrow"],
+      ["↦", "maps to"],
+      ["⊢", "turnstile / proves / entails"],
+      ["⊣", "reversed turnstile"],
+      ["⊨", "models / semantic entailment / double turnstile"],
+      ["⊤", "tautology / true / top"],
+      ["⊥", "perpendicular / bottom / contradiction"],
+      ["∴", "therefore"],
+      ["∵", "because / since"],
+      ["∎", "end of proof / qed / tombstone"],
+      ["■", "black square / qed"],
+      ["□", "white square / open qed"],
+
+      // Calculus & Analysis
+      ["∫", "integral"],
+      ["∬", "double integral"],
+      ["∭", "triple integral"],
+      ["∮", "contour / line integral"],
+      ["∯", "surface integral"],
+      ["∰", "volume integral"],
+      ["∂", "partial derivative"],
+      ["∇", "nabla / del / gradient"],
+      ["∆", "laplace operator / increment / laplacian"],
+      ["∑", "sum / summation"],
+      ["∏", "product / capital pi"],
+      ["∐", "coproduct / amalgum"],
+      ["lim", "limit"],
+      ["∞", "infinity"],
+      ["⧞", "infinity negated"],
+      ["′", "prime / derivative"],
+      ["″", "double prime / second derivative"],
+      ["‴", "triple prime / third derivative"],
+      ["˙", "dot derivative / overdot"],
+      ["¨", "double dot derivative / overddot"],
+
+      // Roots, Powers, Fractions
+      ["√", "square root / radical"],
+      ["∛", "cube root"],
+      ["∜", "fourth root"],
+      ["⁰", "superscript zero"],
+      ["¹", "superscript one"],
+      ["²", "superscript two / squared"],
+      ["³", "superscript three / cubed"],
+      ["⁴", "superscript four"],
+      ["⁵", "superscript five"],
+      ["⁶", "superscript six"],
+      ["⁷", "superscript seven"],
+      ["⁸", "superscript eight"],
+      ["⁹", "superscript nine"],
+      ["ⁿ", "superscript n"],
+      ["⁺", "superscript plus"],
+      ["⁻", "superscript minus"],
+      ["₀", "subscript zero"],
+      ["₁", "subscript one"],
+      ["₂", "subscript two"],
+      ["₃", "subscript three"],
+      ["₄", "subscript four"],
+      ["₅", "subscript five"],
+      ["₆", "subscript six"],
+      ["₇", "subscript seven"],
+      ["₈", "subscript eight"],
+      ["₉", "subscript nine"],
+      ["₊", "subscript plus"],
+      ["₋", "subscript minus"],
+      ["½", "fraction one half"],
+      ["⅓", "fraction one third"],
+      ["⅔", "fraction two thirds"],
+      ["¼", "fraction one quarter"],
+      ["¾", "fraction three quarters"],
+      ["⅕", "fraction one fifth"],
+      ["⅙", "fraction one sixth"],
+      ["⅛", "fraction one eighth"],
+
+      // Geometry & Vectors
+      ["∠", "angle"],
+      ["∡", "measured angle"],
+      ["∢", "spherical angle"],
+      ["∟", "right angle"],
+      ["∥", "parallel to"],
+      ["∦", "not parallel to"],
+      ["⊥", "perpendicular / orthogonal"],
+      ["△", "triangle"],
+      ["○", "circle"],
+      ["⊙", "circled dot operator / hadamard product"],
+      ["⊗", "tensor product / circled times"],
+      ["⊘", "circled division slash"],
+      ["⊚", "circled ring operator"],
+      ["⊛", "circled asterisk"],
+      ["⊝", "circled dash"],
+      ["⋄", "diamond operator"],
+      ["⋆", "star operator"],
+      ["⌒", "arc"],
+      ["°", "degree sign"],
+
+      // Arrows & Delimiters
+      ["↑", "upwards arrow"],
+      ["↓", "downwards arrow"],
+      ["↖", "north west arrow"],
+      ["↗", "north east arrow"],
+      ["↘", "south east arrow"],
+      ["↙", "south west arrow"],
+      ["⇄", "rightwards arrow over leftwards arrow"],
+      ["⇅", "upwards arrow leftwards of downwards arrow"],
+      ["⇆", "leftwards arrow over rightwards arrow"],
+      ["⇇", "leftwards paired arrows"],
+      ["⇉", "rightwards paired arrows"],
+      ["⇈", "upwards paired arrows"],
+      ["⇊", "downwards paired arrows"],
+      ["⇒", "rightwards double arrow"],
+      ["⇐", "leftwards double arrow"],
+      ["⇑", "upwards double arrow"],
+      ["⇓", "downwards double arrow"],
+      ["⇔", "left right double arrow"],
+      ["⇗", "north east double arrow"],
+      ["⇖", "north west double arrow"],
+      ["⇘", "south east double arrow"],
+      ["⇙", "south west double arrow"],
+      ["↺", "anticlockwise open circle arrow"],
+      ["↻", "clockwise open circle arrow"],
+      ["⇀", "rightwards harpoon with barb upwards"],
+      ["⇁", "rightwards harpoon with barb downwards"],
+      ["↼", "leftwards harpoon with barb upwards"],
+      ["↽", "leftwards harpoon with barb downwards"],
+      ["↪", "rightwards arrow with hook"],
+      ["↩", "leftwards arrow with hook"],
+      ["⟨", "left angle bracket / bra"],
+      ["⟩", "right angle bracket / ket"],
+      ["⌈", "left ceiling"],
+      ["⌉", "right ceiling"],
+      ["⌊", "left floor"],
+      ["⌋", "right floor"],
+      ["⟦", "mathematical left white square bracket"],
+      ["⟧", "mathematical right white square bracket"],
+      ["|", "vertical bar / absolute value / divides"],
+      ["‖", "double vertical bar / norm"],
+      ["∤", "does not divide"],
+
+      // Greek Alphabet (Uppercase)
+      ["Α", "Alpha (upper)"],
+      ["Β", "Beta (upper)"],
+      ["Γ", "Gamma (upper)"],
+      ["Δ", "Delta (upper)"],
+      ["Ε", "Epsilon (upper)"],
+      ["Ζ", "Zeta (upper)"],
+      ["Η", "Eta (upper)"],
+      ["Θ", "Theta (upper)"],
+      ["Ι", "Iota (upper)"],
+      ["Κ", "Kappa (upper)"],
+      ["Λ", "Lambda (upper)"],
+      ["Μ", "Mu (upper)"],
+      ["Ν", "Nu (upper)"],
+      ["Ξ", "Xi (upper)"],
+      ["Ο", "Omicron (upper)"],
+      ["Π", "Pi (upper)"],
+      ["Ρ", "Rho (upper)"],
+      ["Σ", "Sigma (upper)"],
+      ["Τ", "Tau (upper)"],
+      ["Υ", "Upsilon (upper)"],
+      ["Φ", "Phi (upper)"],
+      ["Χ", "Chi (upper)"],
+      ["Ψ", "Psi (upper)"],
+      ["Ω", "Omega (upper)"],
+
+      // Greek Alphabet (Lowercase)
+      ["α", "alpha (lower)"],
+      ["β", "beta (lower)"],
+      ["γ", "gamma (lower)"],
+      ["δ", "delta (lower)"],
+      ["ε", "epsilon (lower)"],
+      ["ϵ", "lunate epsilon"],
+      ["ζ", "zeta (lower)"],
+      ["η", "eta (lower)"],
+      ["θ", "theta (lower)"],
+      ["ϑ", "theta variant"],
+      ["ι", "iota (lower)"],
+      ["κ", "kappa (lower)"],
+      ["ϰ", "kappa variant"],
+      ["λ", "lambda (lower)"],
+      ["μ", "mu (lower) / micro"],
+      ["ν", "nu (lower)"],
+      ["ξ", "xi (lower)"],
+      ["ο", "omicron (lower)"],
+      ["π", "pi (lower)"],
+      ["ϖ", "pi variant / omega pi"],
+      ["ρ", "rho (lower)"],
+      ["ϱ", "rho variant"],
+      ["σ", "sigma (lower)"],
+      ["ς", "final sigma"],
+      ["τ", "tau (lower)"],
+      ["υ", "upsilon (lower)"],
+      ["φ", "phi (lower)"],
+      ["ϕ", "straight phi"],
+      ["χ", "chi (lower)"],
+      ["ψ", "psi (lower)"],
+      ["ω", "omega (lower)"],
+
+      // Complex, Probability, Statistics & Misc
+      ["Re", "real part / Re"],
+      ["Im", "imaginary part / Im"],
+      ["ℜ", "fraktur real part"],
+      ["ℑ", "fraktur imaginary part"],
+      ["ℓ", "script small l"],
+      ["ℏ", "reduced planck constant / h-bar"],
+      ["𝔼", "expected value"],
+      ["𝕍", "variance"],
+      ["Cov", "covariance"],
+      ["σ²", "variance / sigma squared"],
+      ["μ̂", "estimator of mean"],
+      ["mod", "modulo"],
+      ["gcd", "greatest common divisor"],
+      ["lcm", "least common multiple"],
+      ["arg", "argument"],
+      ["ker", "kernel"],
+      ["dim", "dimension"],
+      ["det", "determinant"],
+      ["tr", "trace"],
+      ["deg", "degree"]
+    ];
+
+    const grid = document.getElementById('grid');
+    const search = document.getElementById('search');
+    const countEl = document.getElementById('count');
+    const toast = document.getElementById('toast');
+
+    const totalCount = symbols.length;
+
+    symbols.forEach(([char, name]) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.name = name.toLowerCase();
+      cell.dataset.char = char.toLowerCase();
+
+      const charSpan = document.createElement('span');
+      charSpan.className = 'char';
+      charSpan.textContent = char;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'name';
+      nameSpan.textContent = name;
+
+      cell.appendChild(charSpan);
+      cell.appendChild(nameSpan);
+
+      cell.addEventListener('click', () => {
+        copyToClipboard(char);
+      });
+
+      grid.appendChild(cell);
+    });
+
+    updateCount(totalCount);
+
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLowerCase();
+      let visibleCount = 0;
+      const cells = grid.querySelectorAll('.cell');
+
+      cells.forEach(cell => {
+        const name = cell.dataset.name;
+        const char = cell.dataset.char;
+        const match = !query || name.includes(query) || char.includes(query);
+        cell.classList.toggle('hidden', !match);
+        if (match) visibleCount++;
+      });
+
+      updateCount(visibleCount);
+    });
+
+    function updateCount(count) {
+      if (count === totalCount) {
+        countEl.textContent = `Showing all ${totalCount} symbols`;
+      } else {
+        countEl.textContent = `Showing ${count} of ${totalCount} symbols`;
+      }
+    }
+
+    let toastTimeout;
+    function copyToClipboard(text) {
+      const fallbackCopy = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          showToast(text);
+        } catch (err) {
+          console.error('Fallback copy failed', err);
+        }
+        document.body.removeChild(textarea);
+      };
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+          .then(() => showToast(text))
+          .catch(() => fallbackCopy());
+      } else {
+        fallbackCopy();
+      }
+    }
+
+    function showToast(text) {
+      toast.textContent = `Copied "${text}"`;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1200);
+    }
+  </script>
+</body>
+</html>
