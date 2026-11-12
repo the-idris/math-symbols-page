@@ -104,6 +104,45 @@
     .cell.hidden {
       display: none;
     }
+    #history-section .cell {
+      cursor: grab;
+    }
+    #history-section .cell:active {
+      cursor: grabbing;
+    }
+    #history-section .cell.dragging {
+      opacity: 0.4;
+    }
+    #history-section .cell.drop-target {
+      box-shadow: inset 0 0 0 2px #000;
+    }
+    .cell {
+      position: relative;
+    }
+    .del-btn {
+      display: none;
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      line-height: 14px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-family: inherit;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      cursor: pointer;
+      padding: 0;
+    }
+    .del-btn:hover {
+      background: #000;
+      color: #fff;
+    }
+    .cell:hover .del-btn {
+      display: block;
+    }
     #toast {
       position: fixed;
       bottom: 20px;
@@ -128,6 +167,8 @@
     <input type="search" id="search" placeholder="Type to search symbol by name or character..." autofocus />
     <div id="count">Showing all symbols</div>
   </header>
+
+  <section id="history-section" class="group hidden"></section>
 
   <main id="grid"></main>
   <div id="toast"></div>
@@ -474,6 +515,154 @@
 
     let order = loadOrder();
 
+    const HISTORY_KEY = 'symbolHistory';
+    const HISTORY_LIMIT = 24;
+    const historySection = document.getElementById('history-section');
+
+    const entryKey = entry => entry[0] + '\u0000' + entry[1];
+    const entryByKey = new Map();
+    symbols.forEach(entry => {
+      if (!entry[0].startsWith('#')) entryByKey.set(entryKey(entry), entry);
+    });
+
+    function loadHistory() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
+        if (Array.isArray(saved)) {
+          return saved.filter(k => entryByKey.has(k));
+        }
+      } catch (e) {}
+      return [];
+    }
+
+    function saveHistory() {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      } catch (e) {}
+    }
+
+    let history = loadHistory();
+
+    function addToHistory(entry) {
+      const key = entryKey(entry);
+      const idx = history.indexOf(key);
+      if (idx !== -1) history.splice(idx, 1);
+      history.unshift(key);
+      if (history.length > HISTORY_LIMIT) history.length = HISTORY_LIMIT;
+      saveHistory();
+      renderHistory();
+    }
+
+    function removeFromHistory(key) {
+      const idx = history.indexOf(key);
+      if (idx === -1) return;
+      history.splice(idx, 1);
+      saveHistory();
+      renderHistory();
+    }
+
+    let dragKey = null;
+
+    function renderHistory() {
+      historySection.textContent = '';
+      historySection.classList.toggle('hidden', history.length === 0);
+
+      const head = document.createElement('div');
+      head.className = 'group-head';
+      const title = document.createElement('h2');
+      title.textContent = 'History';
+      head.appendChild(title);
+      historySection.appendChild(head);
+
+      const histGrid = document.createElement('div');
+      histGrid.className = 'group-grid';
+      histGrid.addEventListener('dragover', e => {
+        e.preventDefault();
+        const dragging = histGrid.querySelector('.dragging');
+        if (!dragging) return;
+        const after = getDragAfterElement(histGrid, e.clientX);
+        if (after == null) histGrid.appendChild(dragging);
+        else if (after !== dragging) histGrid.insertBefore(dragging, after);
+      });
+      histGrid.addEventListener('drop', e => {
+        e.preventDefault();
+        commitHistoryOrder(histGrid);
+      });
+
+      history.forEach(key => {
+        const entry = entryByKey.get(key);
+        const [char, name] = entry;
+
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.draggable = true;
+        cell.dataset.key = key;
+        cell.dataset.name = name.toLowerCase();
+        cell.dataset.char = char.toLowerCase();
+
+        const charSpan = document.createElement('span');
+        charSpan.className = 'char';
+        charSpan.textContent = char;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'name';
+        nameSpan.textContent = name;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Remove from history';
+        delBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          removeFromHistory(key);
+        });
+
+        cell.appendChild(charSpan);
+        cell.appendChild(nameSpan);
+        cell.appendChild(delBtn);
+
+        cell.addEventListener('click', () => {
+          copyToClipboard(char, entry);
+        });
+
+        cell.addEventListener('dragstart', () => {
+          dragKey = key;
+          cell.classList.add('dragging');
+        });
+        cell.addEventListener('dragend', () => {
+          cell.classList.remove('dragging');
+          dragKey = null;
+          commitHistoryOrder(histGrid);
+        });
+
+        histGrid.appendChild(cell);
+      });
+
+      historySection.appendChild(histGrid);
+    }
+
+    function getDragAfterElement(container, x) {
+      const cells = [...container.querySelectorAll('.cell:not(.dragging)')];
+      return cells.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = x - box.left - box.width / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        }
+        return closest;
+      }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    }
+
+    function commitHistoryOrder(container) {
+      const newOrder = [...container.querySelectorAll('.cell')].map(c => c.dataset.key);
+      if (newOrder.join('|') !== history.join('|')) {
+        history = newOrder;
+        saveHistory();
+      }
+    }
+
+    renderHistory();
+
     // Build one cell per symbol (kept in a map so sections can be re-rendered)
     const cellMap = new Map(); // symbol entry -> cell element
     symbols.forEach(entry => {
@@ -497,7 +686,7 @@
       cell.appendChild(nameSpan);
 
       cell.addEventListener('click', () => {
-        copyToClipboard(char);
+        copyToClipboard(char, entry);
       });
 
       cellMap.set(entry, cell);
@@ -575,6 +764,15 @@
     function applyFilter(query) {
       let visibleCount = 0;
 
+      historySection.querySelectorAll('.cell').forEach(cell => {
+        const name = cell.dataset.name;
+        const char = cell.dataset.char;
+        const match = !query || name.includes(query) || char.includes(query);
+        cell.classList.toggle('hidden', !match);
+      });
+      const histVisible = historySection.querySelectorAll('.cell:not(.hidden)').length;
+      historySection.classList.toggle('hidden', histVisible === 0);
+
       sectionsEl.forEach((section, catName) => {
         const catGrid = gridEl.get(catName);
         let groupVisible = 0;
@@ -605,7 +803,8 @@
     }
 
     let toastTimeout;
-    function copyToClipboard(text) {
+    function copyToClipboard(text, entry) {
+      if (entry) addToHistory(entry);
       const fallbackCopy = () => {
         const textarea = document.createElement('textarea');
         textarea.value = text;
