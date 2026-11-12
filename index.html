@@ -36,7 +36,39 @@
       font-size: 0.85rem;
       margin-bottom: 12px;
     }
-    #grid {
+    .group {
+      margin-bottom: 20px;
+    }
+    .group.hidden {
+      display: none;
+    }
+    .group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #000;
+      margin-bottom: 8px;
+      padding-bottom: 2px;
+    }
+    .group-head h2 {
+      font-size: 1rem;
+    }
+    .group-controls {
+      display: flex;
+      gap: 4px;
+    }
+    .move-btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      border: 1px solid #000;
+      background: #fff;
+      cursor: pointer;
+      padding: 2px 8px;
+    }
+    .move-btn:hover {
+      background: #eee;
+    }
+    .group-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
       gap: 4px;
@@ -102,7 +134,7 @@
 
   <script>
     const symbols = [
-      // Basic Arithmetic & Algebra
+      ["#Basic Arithmetic & Algebra"],
       ["+", "plus / addition"],
       ["−", "minus / subtraction"],
       ["×", "times / multiplication"],
@@ -135,7 +167,7 @@
       ["‰", "per mille"],
       ["‱", "basis point / per myriad"],
 
-      // Sets & Relations
+      ["#Sets & Relations"],
       ["∈", "element of"],
       ["∉", "not an element of"],
       ["∋", "contains as member / owns"],
@@ -157,7 +189,7 @@
       ["ℵ", "aleph / cardinality"],
       ["ℶ", "beth"],
 
-      // Number Systems
+      ["#Number Systems"],
       ["ℕ", "natural numbers"],
       ["ℤ", "integers"],
       ["ℚ", "rational numbers"],
@@ -167,7 +199,7 @@
       ["ℙ", "prime numbers / projective space"],
       ["𝔽", "finite field"],
 
-      // Logic & Proofs
+      ["#Logic & Proofs"],
       ["∀", "for all / universal quantifier"],
       ["∃", "there exists / existential quantifier"],
       ["∄", "there does not exist"],
@@ -194,7 +226,7 @@
       ["■", "black square / qed"],
       ["□", "white square / open qed"],
 
-      // Calculus & Analysis
+      ["#Calculus & Analysis"],
       ["∫", "integral"],
       ["∬", "double integral"],
       ["∭", "triple integral"],
@@ -216,7 +248,7 @@
       ["˙", "dot derivative / overdot"],
       ["¨", "double dot derivative / overddot"],
 
-      // Roots, Powers, Fractions
+      ["#Roots, Powers, Fractions"],
       ["√", "square root / radical"],
       ["∛", "cube root"],
       ["∜", "fourth root"],
@@ -254,7 +286,7 @@
       ["⅙", "fraction one sixth"],
       ["⅛", "fraction one eighth"],
 
-      // Geometry & Vectors
+      ["#Geometry & Vectors"],
       ["∠", "angle"],
       ["∡", "measured angle"],
       ["∢", "spherical angle"],
@@ -275,7 +307,7 @@
       ["⌒", "arc"],
       ["°", "degree sign"],
 
-      // Arrows & Delimiters
+      ["#Arrows & Delimiters"],
       ["↑", "upwards arrow"],
       ["↓", "downwards arrow"],
       ["↖", "north west arrow"],
@@ -318,7 +350,7 @@
       ["‖", "double vertical bar / norm"],
       ["∤", "does not divide"],
 
-      // Greek Alphabet (Uppercase)
+      ["#Greek Alphabet (Uppercase)"],
       ["Α", "Alpha (upper)"],
       ["Β", "Beta (upper)"],
       ["Γ", "Gamma (upper)"],
@@ -344,7 +376,7 @@
       ["Ψ", "Psi (upper)"],
       ["Ω", "Omega (upper)"],
 
-      // Greek Alphabet (Lowercase)
+      ["#Greek Alphabet (Lowercase)"],
       ["α", "alpha (lower)"],
       ["β", "beta (lower)"],
       ["γ", "gamma (lower)"],
@@ -377,7 +409,7 @@
       ["ψ", "psi (lower)"],
       ["ω", "omega (lower)"],
 
-      // Complex, Probability, Statistics & Misc
+      ["#Complex, Probability, Statistics & Misc"],
       ["Re", "real part / Re"],
       ["Im", "imaginary part / Im"],
       ["ℜ", "fraktur real part"],
@@ -404,14 +436,54 @@
     const search = document.getElementById('search');
     const countEl = document.getElementById('count');
     const toast = document.getElementById('toast');
+    const STORAGE_KEY = 'symbolGroupOrder';
 
-    const totalCount = symbols.length;
+    const totalCount = symbols.filter(e => !e[0].startsWith('#')).length;
 
-    symbols.forEach(([char, name]) => {
+    // Parse flat list into categories
+    const categories = []; // { name, symbols: [] }
+    let current = null;
+    symbols.forEach(entry => {
+      if (entry[0].startsWith('#')) {
+        current = { name: entry[0].slice(1), symbols: [] };
+        categories.push(current);
+      } else {
+        current.symbols.push(entry);
+      }
+    });
+
+    function loadOrder() {
+      const defaultOrder = categories.map(c => c.name);
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (Array.isArray(saved) &&
+            saved.length === defaultOrder.length &&
+            saved.every(n => defaultOrder.includes(n)) &&
+            new Set(saved).size === saved.length) {
+          return saved;
+        }
+      } catch (e) {}
+      return defaultOrder;
+    }
+
+    function saveOrder(order) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+      } catch (e) {}
+    }
+
+    let order = loadOrder();
+
+    // Build one cell per symbol (kept in a map so sections can be re-rendered)
+    const cellMap = new Map(); // symbol entry -> cell element
+    symbols.forEach(entry => {
+      if (entry[0].startsWith('#')) return;
+      const [char, name] = entry;
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.dataset.name = name.toLowerCase();
       cell.dataset.char = char.toLowerCase();
+      cell.dataset.entry = char + '\u0000' + name;
 
       const charSpan = document.createElement('span');
       charSpan.className = 'char';
@@ -428,26 +500,101 @@
         copyToClipboard(char);
       });
 
-      grid.appendChild(cell);
+      cellMap.set(entry, cell);
     });
+
+    const sectionsEl = new Map(); // category name -> section element
+    const gridEl = new Map(); // category name -> grid element
+
+    function renderSections() {
+      grid.textContent = '';
+      sectionsEl.clear();
+      gridEl.clear();
+
+      order.forEach(catName => {
+        const cat = categories.find(c => c.name === catName);
+
+        const section = document.createElement('section');
+        section.className = 'group';
+
+        const head = document.createElement('div');
+        head.className = 'group-head';
+
+        const title = document.createElement('h2');
+        title.textContent = cat.name;
+        title.dataset.category = catName;
+
+        const controls = document.createElement('div');
+        controls.className = 'group-controls';
+
+        const upBtn = document.createElement('button');
+        upBtn.className = 'move-btn';
+        upBtn.textContent = '↑';
+        upBtn.title = 'Move group up';
+        upBtn.addEventListener('click', () => moveGroup(catName, -1));
+
+        const downBtn = document.createElement('button');
+        downBtn.className = 'move-btn';
+        downBtn.textContent = '↓';
+        downBtn.title = 'Move group down';
+        downBtn.addEventListener('click', () => moveGroup(catName, 1));
+
+        controls.appendChild(upBtn);
+        controls.appendChild(downBtn);
+        head.appendChild(title);
+        head.appendChild(controls);
+        section.appendChild(head);
+
+        const catGrid = document.createElement('div');
+        catGrid.className = 'group-grid';
+        cat.symbols.forEach(entry => catGrid.appendChild(cellMap.get(entry)));
+        section.appendChild(catGrid);
+
+        grid.appendChild(section);
+        sectionsEl.set(catName, section);
+        gridEl.set(catName, catGrid);
+      });
+    }
+
+    function moveGroup(catName, dir) {
+      const idx = order.indexOf(catName);
+      const target = idx + dir;
+      if (target < 0 || target >= order.length) return;
+      [order[idx], order[target]] = [order[target], order[idx]];
+      saveOrder(order);
+      renderSections();
+      applyFilter(search.value.trim().toLowerCase());
+    }
 
     updateCount(totalCount);
 
     search.addEventListener('input', () => {
-      const query = search.value.trim().toLowerCase();
-      let visibleCount = 0;
-      const cells = grid.querySelectorAll('.cell');
+      applyFilter(search.value.trim().toLowerCase());
+    });
 
-      cells.forEach(cell => {
-        const name = cell.dataset.name;
-        const char = cell.dataset.char;
-        const match = !query || name.includes(query) || char.includes(query);
-        cell.classList.toggle('hidden', !match);
-        if (match) visibleCount++;
+    function applyFilter(query) {
+      let visibleCount = 0;
+
+      sectionsEl.forEach((section, catName) => {
+        const catGrid = gridEl.get(catName);
+        let groupVisible = 0;
+
+        catGrid.querySelectorAll('.cell').forEach(cell => {
+          const name = cell.dataset.name;
+          const char = cell.dataset.char;
+          const match = !query || name.includes(query) || char.includes(query);
+          cell.classList.toggle('hidden', !match);
+          if (match) groupVisible++;
+        });
+
+        visibleCount += groupVisible;
+        section.classList.toggle('hidden', groupVisible === 0);
       });
 
       updateCount(visibleCount);
-    });
+    }
+
+    renderSections();
 
     function updateCount(count) {
       if (count === totalCount) {
