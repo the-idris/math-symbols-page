@@ -113,6 +113,10 @@
     #history-section .cell.dragging {
       opacity: 0.4;
     }
+    #history-section .cell.placeholder {
+      opacity: 0.35;
+      border-style: dashed;
+    }
     #history-section .cell.drop-target {
       box-shadow: inset 0 0 0 2px #000;
     }
@@ -562,6 +566,7 @@
     }
 
     let dragKey = null;
+    let placeholder = null;
 
     function renderHistory() {
       historySection.textContent = '';
@@ -578,11 +583,15 @@
       histGrid.className = 'group-grid';
       histGrid.addEventListener('dragover', e => {
         e.preventDefault();
-        const dragging = histGrid.querySelector('.dragging');
-        if (!dragging) return;
+        e.dataTransfer.dropEffect = 'move';
+        if (!placeholder) return;
         const after = getDragAfterElement(histGrid, e.clientX);
-        if (after == null) histGrid.appendChild(dragging);
-        else if (after !== dragging) histGrid.insertBefore(dragging, after);
+        if (after === placeholder.nextElementSibling) return;
+        if (after == null && placeholder === histGrid.lastElementChild) return;
+        animateSlide(histGrid, () => {
+          if (after == null) histGrid.appendChild(placeholder);
+          else histGrid.insertBefore(placeholder, after);
+        });
       });
       histGrid.addEventListener('drop', e => {
         e.preventDefault();
@@ -625,12 +634,26 @@
           copyToClipboard(char, entry);
         });
 
-        cell.addEventListener('dragstart', () => {
+        cell.addEventListener('dragstart', e => {
           dragKey = key;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', key);
           cell.classList.add('dragging');
+          placeholder = cell.cloneNode(true);
+          placeholder.classList.remove('dragging');
+          placeholder.classList.add('placeholder');
+          cell.after(placeholder);
+          setTimeout(() => {
+            if (placeholder) cell.style.display = 'none';
+          }, 0);
         });
         cell.addEventListener('dragend', () => {
+          if (placeholder && placeholder.parentNode) {
+            placeholder.replaceWith(cell);
+          }
+          cell.style.display = '';
           cell.classList.remove('dragging');
+          placeholder = null;
           dragKey = null;
           commitHistoryOrder(histGrid);
         });
@@ -641,8 +664,31 @@
       historySection.appendChild(histGrid);
     }
 
+    function animateSlide(container, mutate) {
+      const cells = [...container.querySelectorAll('.cell')];
+      const first = new Map(cells.map(c => [c, c.getBoundingClientRect()]));
+      mutate();
+      cells.forEach(cell => {
+        const lastRect = cell.getBoundingClientRect();
+        const prevRect = first.get(cell);
+        const dx = prevRect.left - lastRect.left;
+        const dy = prevRect.top - lastRect.top;
+        if (!dx && !dy) return;
+        cell.style.transition = 'none';
+        cell.style.transform = `translate(${dx}px, ${dy}px)`;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          cell.style.transition = 'transform 0.15s ease-out';
+          cell.style.transform = '';
+          cell.addEventListener('transitionend', function clear() {
+            cell.style.transition = '';
+            cell.removeEventListener('transitionend', clear);
+          });
+        }));
+      });
+    }
+
     function getDragAfterElement(container, x) {
-      const cells = [...container.querySelectorAll('.cell:not(.dragging)')];
+      const cells = [...container.querySelectorAll('.cell:not(.dragging):not(.placeholder)')];
       return cells.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = x - box.left - box.width / 2;
